@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CDM Class Finder</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
-    --ink:#1a2332; --paper:#f7f5f0; --accent:#c8443b; --accent2:#2f6f5e;
-    --line:#e1ddd0; --panel:#ffffff; --gold:#c98b1e; --blue:#2b7de9;
+    --ink:#111827; --paper:#eef1f6; --accent:#1a56db; --accent2:#2f6f5e;
+    --line:#e2e5ea; --panel:#ffffff; --gold:#c98b1e; --blue:#1a56db;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
     --p1:#c8443b; --p2:#2f6f5e; --p3:#c98b1e; --p4:#3a6fb0; --p5:#8a4fae;
     --p6:#b0526f; --p7:#4f9e8a; --p8:#a85c2e; --p9:#5a5fa8; --p0:#707070;
   }
@@ -19,17 +19,22 @@
     background:var(--paper); color:var(--ink);
   }
   header{
-    background:var(--ink); color:#fff; padding:10px 16px; display:flex; align-items:center; gap:14px;
-    flex-wrap:wrap; position:sticky; top:0; z-index:30;
+    background:#fff; color:var(--ink); padding:12px 18px; display:flex; align-items:center; gap:14px;
+    flex-wrap:wrap; position:sticky; top:0; z-index:30; border-bottom:1px solid var(--line);
   }
-  header h1{ font-size:16px; margin:0; font-weight:700; }
-  header .sub{ font-size:11px; color:#b9c0cc; margin-top:1px; }
-  header nav{ margin-left:auto; display:flex; gap:6px; }
+  header h1{ font-size:16px; margin:0; font-weight:700; letter-spacing:-.01em; }
+  header .sub{ font-family:var(--mono); font-size:11px; color:#8891a0; margin-top:2px; }
+  header nav{ margin-left:auto; display:flex; align-items:center; gap:10px; }
   header nav button{
-    background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.2);
-    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer; font-weight:600;
+    background:#fff; color:var(--ink); border:1px solid var(--line);
+    padding:7px 13px; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600;
+    box-shadow:0 1px 2px rgba(16,24,40,.04); transition:.15s;
   }
-  header .reset{ background:transparent; border:1px solid rgba(255,255,255,.25); color:#dcdfe6; }
+  header nav button:hover{ border-color:#c7cede; box-shadow:0 2px 5px rgba(16,24,40,.08); }
+  header .reset{
+    background:transparent; border:none; color:#6b7280; font-weight:500; box-shadow:none; padding:7px 4px;
+  }
+  header .reset:hover{ color:var(--ink); text-decoration:underline; box-shadow:none; }
   .hide{ display:none !important; }
 
   /* --- Instructions modal --- */
@@ -42,7 +47,7 @@
     padding:22px 24px 26px; position:relative;
   }
   .modalBox h2{ margin:0 0 4px; font-size:19px; }
-  .modalBox .modalSub{ font-size:13px; color:#777; margin-bottom:18px; }
+  .modalBox .modalSub{ font-family:var(--mono); font-size:12px; color:#8891a0; margin-bottom:18px; }
   .modalBox .closeX{
     position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; line-height:1;
     cursor:pointer; color:#888; padding:4px;
@@ -51,7 +56,7 @@
   .instrStep{ margin-bottom:20px; }
   .instrStep .stepNum{
     display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%;
-    background:var(--ink); color:#fff; font-weight:700; font-size:13px; margin-right:8px; flex-shrink:0;
+    background:var(--accent); color:#fff; font-weight:700; font-size:13px; margin-right:8px; flex-shrink:0;
   }
   .instrStep .stepTitle{ display:flex; align-items:center; font-size:14.5px; font-weight:600; margin-bottom:8px; }
   .instrStep img{
@@ -64,39 +69,40 @@
   .choiceGrid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px; }
   @media (max-width:680px){ .choiceGrid{ grid-template-columns:1fr; } }
   .choiceCard{
-    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px;
-    cursor:pointer; transition:.15s; text-align:left;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px;
+    cursor:pointer; transition:.15s; text-align:left; box-shadow:0 1px 2px rgba(16,24,40,.04);
   }
-  .choiceCard:hover{ border-color:var(--accent); box-shadow:0 4px 16px rgba(0,0,0,.06); }
-  .choiceCard .emoji{ font-size:30px; }
-  .choiceCard h3{ margin:10px 0 6px; font-size:17px; }
-  .choiceCard p{ margin:0; font-size:13.5px; color:#555; line-height:1.5; }
+  .choiceCard:hover{ border-color:var(--accent); box-shadow:0 4px 14px rgba(16,24,40,.08); }
+  .choiceCard .emoji{ font-size:26px; }
+  .choiceCard h3{ margin:10px 0 6px; font-size:16px; font-weight:700; }
+  .choiceCard p{ margin:0; font-family:var(--mono); font-size:12.5px; color:#6b7280; line-height:1.55; }
 
-  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; margin-top:16px; }
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:16px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
   .panel h3{ margin-top:0; }
   .dropzone{
-    border:2px dashed var(--line); border-radius:12px; padding:34px 16px; text-align:center; cursor:pointer;
+    border:2px dashed var(--line); border-radius:10px; padding:34px 16px; text-align:center; cursor:pointer;
     color:#666; transition:.15s;
   }
-  .dropzone:hover, .dropzone.drag{ border-color:var(--accent); background:#fdf3f2; color:var(--ink); }
+  .dropzone:hover, .dropzone.drag{ border-color:var(--accent); background:#eef3fd; color:var(--ink); }
   .dropzone input{ display:none; }
-  .backlink{ font-size:13px; color:#777; cursor:pointer; display:inline-block; margin-bottom:6px; }
+  .backlink{ font-family:var(--mono); font-size:12.5px; color:#8891a0; cursor:pointer; display:inline-block; margin-bottom:6px; }
   .backlink:hover{ color:var(--ink); }
 
   table.previewTbl{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:14px; }
   table.previewTbl th, table.previewTbl td{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
-  table.previewTbl th{ color:#777; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em; }
+  table.previewTbl th{ color:#8891a0; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; font-family:var(--mono); }
   table.previewTbl select, table.previewTbl input{ font:inherit; font-size:13px; padding:4px 6px; border:1px solid var(--line); border-radius:5px; width:100%; }
   .warnRow td{ background:#fff8ec; }
   .badge-warn{ color:#a85c2e; font-size:11.5px; font-weight:700; }
   .btnRow{ margin-top:16px; display:flex; gap:10px; }
-  button.primary{ background:var(--ink); color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
-  button.secondary{ background:#fff; color:var(--ink); border:1px solid var(--line); padding:9px 14px; border-radius:8px; font-size:13.5px; cursor:pointer; }
+  button.primary{ background:var(--accent); color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 1px 2px rgba(16,24,40,.06); }
+  button.primary:hover{ filter:brightness(1.06); }
+  button.secondary{ background:#fff; color:var(--ink); border:1px solid var(--line); padding:9px 14px; border-radius:8px; font-size:13.5px; cursor:pointer; box-shadow:0 1px 2px rgba(16,24,40,.04); }
   button.secondary:hover{ border-color:var(--accent); }
 
   /* manual entry */
   .manRow{ display:grid; grid-template-columns:70px 1fr 1.3fr; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
-  .manRow .pd{ font-weight:700; color:var(--accent); }
+  .manRow .pd{ font-weight:700; color:var(--accent); font-family:var(--mono); }
   .manRow select, .manRow input{ font:inherit; font-size:13.5px; padding:7px 8px; border:1px solid var(--line); border-radius:7px; width:100%; }
 
   /* --- Map app layout --- */
@@ -113,8 +119,8 @@
   .mapFrame img{ display:block; width:100%; height:auto; }
 
   .sideCol{ display:flex; flex-direction:column; gap:14px; position:sticky; top:64px; align-self:start; max-height:calc(100vh - 80px); overflow-y:auto; }
-  .sideBox{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
-  .sideBox h4{ margin:0 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:#777; }
+  .sideBox{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+  .sideBox h4{ margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#8891a0; font-weight:700; }
   .searchBox input{ font:inherit; font-size:14px; padding:9px 12px; border:1px solid var(--line); border-radius:9px; width:100%; }
   .toggleRow{ display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13px; color:#555; }
 
@@ -123,12 +129,12 @@
     display:flex; align-items:center; gap:8px; font-size:13px; background:#fff; border:1px solid var(--line);
     padding:7px 8px; border-radius:9px; cursor:pointer; transition:.15s;
   }
-  .legendItem:hover{ border-color:var(--accent); }
+  .legendItem:hover{ border-color:var(--accent); box-shadow:0 1px 4px rgba(16,24,40,.08); }
   .legendItem .sw{ width:24px; height:24px; border-radius:50%; color:#fff; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; border:2px solid #fff; box-shadow:0 0 0 1px var(--line); flex-shrink:0; }
-  .legendItem .info{ line-height:1.25; }
+  .legendItem .info{ line-height:1.3; }
   .legendItem .course{ font-weight:600; }
-  .legendItem .room{ color:#777; font-size:11.5px; }
-  .legendItem.nowRow{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(200,68,59,.15); }
+  .legendItem .room{ font-family:var(--mono); color:#8891a0; font-size:11px; }
+  .legendItem.nowRow{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(26,86,219,.15); }
   .onlineTag{
     margin-left:auto; background:var(--gold); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.03em;
     padding:3px 6px; border-radius:5px; flex-shrink:0; align-self:center;
@@ -136,8 +142,8 @@
   #scheduleDatePicker{
     font:inherit; font-size:13px; padding:7px 8px; border:1px solid var(--line); border-radius:7px; width:100%; margin-bottom:8px;
   }
-  .dayTypeTag{ font-size:12px; color:#777; margin-bottom:8px; }
-  .noSchoolMsg{ font-size:13px; color:#555; background:#f4f2eb; border-radius:9px; padding:10px; }
+  .dayTypeTag{ font-family:var(--mono); font-size:11.5px; color:#8891a0; margin-bottom:8px; }
+  .noSchoolMsg{ font-size:13px; color:#555; background:#f4f6fa; border-radius:9px; padding:10px; }
   #icsRange{ font:inherit; font-size:13px; padding:7px 8px; border:1px solid var(--line); border-radius:7px; width:100%; }
   .printOnly{ display:none; }
 
@@ -152,7 +158,7 @@
   }
   .flagPin .stem{ width:3px; height:16px; background:rgba(0,0,0,.5); }
   .flagPin.pulse .bulb{ animation:pulse 1s ease-out 2; }
-  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(200,68,59,.55);} 100%{ box-shadow:0 0 0 14px rgba(200,68,59,0);} }
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(26,86,219,.55);} 100%{ box-shadow:0 0 0 14px rgba(26,86,219,0);} }
   .dotPin{
     position:absolute; width:11px; height:11px; margin-left:-5.5px; margin-top:-5.5px; border-radius:50%;
     background:#9a9689; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4); cursor:pointer; z-index:5;
@@ -163,7 +169,7 @@
     position:absolute; transform:translate(-50%,-100%); margin-top:-30px; background:#fff; border:1px solid var(--line);
     border-radius:8px; padding:6px 10px; font-size:12.5px; box-shadow:0 4px 14px rgba(0,0,0,.18); white-space:nowrap; z-index:10;
   }
-  .note{ font-size:12.5px; color:#888; margin-top:10px; line-height:1.5; }
+  .note{ font-family:var(--mono); font-size:12px; color:#8891a0; margin-top:10px; line-height:1.55; }
 
   /* --- Print --- */
   @media print{
@@ -253,7 +259,7 @@
 
   <!-- SETUP SCREEN -->
   <div id="setupScreen">
-    <div class="choiceGrid">
+    <div class="choiceGrid" id="choiceGrid">
       <div class="choiceCard" onclick="openPanel('uploadPanel')">
         <div class="emoji">📄</div>
         <h3>Upload my schedule PDF or screenshot</h3>
@@ -374,12 +380,15 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') closeInstruct
 
 // ---------- Setup screen controls ----------
 function openPanel(id){
+  document.getElementById('choiceGrid').classList.add('hide');
   document.getElementById('uploadPanel').classList.add('hide');
   document.getElementById('manualPanel').classList.add('hide');
   document.getElementById(id).classList.remove('hide');
   if(id === 'manualPanel') buildManualRows();
+  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
 }
 function closePanels(){
+  document.getElementById('choiceGrid').classList.remove('hide');
   document.getElementById('uploadPanel').classList.add('hide');
   document.getElementById('manualPanel').classList.add('hide');
 }
@@ -443,9 +452,25 @@ async function handlePDF(file){
   }
 }
 
+let tesseractLoadPromise = null;
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(tesseractLoadPromise) return tesseractLoadPromise;
+  tesseractLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load OCR library'));
+    document.head.appendChild(s);
+  });
+  return tesseractLoadPromise;
+}
+
 async function handleImage(file){
-  document.getElementById('dzText').textContent = 'Reading ' + file.name + ' … 0%';
+  document.getElementById('dzText').textContent = 'Loading image reader… ';
   try{
+    await loadTesseract();
+    document.getElementById('dzText').textContent = 'Reading ' + file.name + ' … 0%';
     const canvas = await upscaleImage(file, 2);
     const result = await Tesseract.recognize(canvas, 'eng', {
       logger: m => {
@@ -582,20 +607,40 @@ function finalizeFromManual(){
 }
 
 // ---------- Launch main app ----------
+const SCHEDULE_STORAGE_KEY = 'cdm_class_finder_schedule_v1';
+function saveScheduleToStorage(){
+  try{ localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedule)); }catch(e){}
+}
+function tryAutoResume(){
+  try{
+    const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length){
+        schedule = parsed;
+        launchApp();
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
 function launchApp(){
   document.getElementById('setupScreen').classList.add('hide');
   document.getElementById('appScreen').classList.remove('hide');
+  saveScheduleToStorage();
   renderExplore();
   initTodaySchedule();
 }
 function resetAll(){
   schedule = [];
+  try{ localStorage.removeItem(SCHEDULE_STORAGE_KEY); }catch(e){}
   document.getElementById('setupScreen').classList.remove('hide');
   document.getElementById('appScreen').classList.add('hide');
   closePanels();
   document.getElementById('parsedWrap').classList.add('hide');
   fileInput.value = '';
-  document.getElementById('dzText').textContent = 'Click to choose a PDF, or drag one here';
+  document.getElementById('dzText').textContent = 'Click to choose a PDF or image, drag one here, or paste a screenshot (Ctrl+V)';
 }
 
 // ---------- Explore map view ----------
@@ -922,6 +967,8 @@ function downloadICS(){
   a.click();
   statusEl.textContent = count + ' events exported. Open the downloaded file to import it into your Calendar app.';
 }
+
+tryAutoResume();
 
 </script>
 </body>

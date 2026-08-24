@@ -138,6 +138,7 @@
   }
   .dayTypeTag{ font-size:12px; color:#777; margin-bottom:8px; }
   .noSchoolMsg{ font-size:13px; color:#555; background:#f4f2eb; border-radius:9px; padding:10px; }
+  #icsRange{ font:inherit; font-size:13px; padding:7px 8px; border:1px solid var(--line); border-radius:7px; width:100%; }
   .printOnly{ display:none; }
 
   /* --- Pins --- */
@@ -167,7 +168,7 @@
   /* --- Print --- */
   @media print{
     *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
-    header, .sideBox.searchSide, .sideBox.todaySide, .backlink, .btnRow, #setupScreen, #instructionsModal{ display:none !important; }
+    header, .sideBox.searchSide, .sideBox.todaySide, .sideBox.exportSide, .backlink, .btnRow, #setupScreen, #instructionsModal{ display:none !important; }
     body{ background:#fff; margin:0; }
     main{ max-width:none; padding:0; margin:0; }
     #appScreen{ margin:0; }
@@ -325,6 +326,16 @@
           <h4>My Classes</h4>
           <div class="legendList" id="legend"></div>
           <div class="note" id="legendNote"></div>
+        </div>
+        <div class="sideBox exportSide">
+          <h4>Export to Calendar</h4>
+          <select id="icsRange">
+            <option value="full">Full Year (Aug – Jun)</option>
+            <option value="fall">Fall Semester (Aug – Dec)</option>
+            <option value="spring">Spring Semester (Jan – Jun)</option>
+          </select>
+          <button class="secondary" style="width:100%; margin-top:8px;" onclick="downloadICS()">📅 Download .ics file</button>
+          <div class="note" id="icsStatus">Imports into Apple/iPhone Calendar, Outlook, or Google Calendar. Times assume Pacific Time.</div>
         </div>
       </div>
     </div>
@@ -804,6 +815,112 @@ function initTodaySchedule(){
   const initial = clampToDataRange(todayStr());
   picker.value = initial;
   renderTodaySchedule(initial);
+}
+
+// ---------- Calendar (.ics) export ----------
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function icsDateTime(dateStr, timeStr){
+  const m = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if(!m) return dateStr.replace(/-/g,'') + 'T000000';
+  let h = parseInt(m[1],10);
+  const min = m[2];
+  const ap = m[3].toUpperCase();
+  if(ap === 'PM' && h !== 12) h += 12;
+  if(ap === 'AM' && h === 12) h = 0;
+  return dateStr.replace(/-/g,'') + 'T' + pad2(h) + min + '00';
+}
+function icsDateOnly(dateStr){ return dateStr.replace(/-/g,''); }
+function addDaysStr(dateStr, n){
+  const [y,mo,da] = dateStr.split('-').map(Number);
+  const dt = new Date(y, mo-1, da + n);
+  return dt.getFullYear() + '-' + pad2(dt.getMonth()+1) + '-' + pad2(dt.getDate());
+}
+function escapeICS(s){
+  return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+}
+function icsTimestampNow(){
+  const d = new Date();
+  return d.getUTCFullYear() + pad2(d.getUTCMonth()+1) + pad2(d.getUTCDate()) + 'T' +
+    pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + 'Z';
+}
+
+const VTIMEZONE_PACIFIC = [
+  'BEGIN:VTIMEZONE','TZID:America/Los_Angeles','X-LIC-LOCATION:America/Los_Angeles',
+  'BEGIN:DAYLIGHT','TZOFFSETFROM:-0800','TZOFFSETTO:-0700','TZNAME:PDT',
+  'DTSTART:19700308T020000','RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU','END:DAYLIGHT',
+  'BEGIN:STANDARD','TZOFFSETFROM:-0700','TZOFFSETTO:-0800','TZNAME:PST',
+  'DTSTART:19701101T020000','RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU','END:STANDARD',
+  'END:VTIMEZONE'
+];
+
+function buildICS(rangeStart, rangeEnd){
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//CDM Class Finder//Schedule Export//EN','CALSCALE:GREGORIAN'];
+  lines.push(...VTIMEZONE_PACIFIC);
+
+  const dtstamp = icsTimestampNow();
+  const dates = Object.keys(BELL_CALENDAR).sort().filter(d => d >= rangeStart && d <= rangeEnd);
+  let count = 0;
+
+  dates.forEach(dateStr => {
+    const entry = BELL_CALENDAR[dateStr];
+    const resolved = resolveDayBlocks(entry);
+    if(resolved.noSchool) return;
+
+    resolved.rows.forEach(r => {
+      if(r.periodNum === null || r.periodNum === undefined) return;
+      const s = schedule.find(s => s.pd === r.periodNum);
+      if(!s) return;
+      count++;
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:cdm-' + dateStr + '-p' + r.periodNum + '@cdmclassfinder');
+      lines.push('DTSTAMP:' + dtstamp);
+      lines.push('DTSTART;TZID=America/Los_Angeles:' + icsDateTime(dateStr, r.start));
+      lines.push('DTEND;TZID=America/Los_Angeles:' + icsDateTime(dateStr, r.end));
+      lines.push('SUMMARY:' + escapeICS(s.course + ' (Rm ' + s.room + ')'));
+      lines.push('LOCATION:' + escapeICS('Room ' + s.room));
+      lines.push('DESCRIPTION:' + escapeICS('Period ' + s.pd + (s.teacher ? ' · ' + s.teacher : '') + ' · ' + resolved.typeLabel));
+      lines.push('END:VEVENT');
+    });
+
+    const p9 = schedule.find(s => s.pd === 9);
+    if(p9){
+      count++;
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:cdm-' + dateStr + '-p9@cdmclassfinder');
+      lines.push('DTSTAMP:' + dtstamp);
+      lines.push('DTSTART;VALUE=DATE:' + icsDateOnly(dateStr));
+      lines.push('DTEND;VALUE=DATE:' + icsDateOnly(addDaysStr(dateStr,1)));
+      lines.push('SUMMARY:' + escapeICS('[Online] ' + p9.course + ' — self-paced, no fixed time'));
+      lines.push('DESCRIPTION:' + escapeICS('Period 9' + (p9.teacher ? ' · ' + p9.teacher : '') + ' — complete at your own pace today.'));
+      lines.push('END:VEVENT');
+    }
+  });
+
+  lines.push('END:VCALENDAR');
+  return {text: lines.join('\r\n'), count};
+}
+
+function downloadICS(){
+  if(schedule.length === 0) return;
+  const rangeSel = document.getElementById('icsRange').value;
+  const keys = Object.keys(BELL_CALENDAR).sort();
+  let start = keys[0], end = keys[keys.length-1], label = 'full-year';
+  if(rangeSel === 'fall'){ end = '2026-12-31'; label = 'fall-semester'; }
+  else if(rangeSel === 'spring'){ start = '2027-01-01'; label = 'spring-semester'; }
+
+  const {text, count} = buildICS(start, end);
+  const statusEl = document.getElementById('icsStatus');
+  if(count === 0){
+    statusEl.textContent = 'No classes found for that range.';
+    return;
+  }
+  const blob = new Blob([text], {type:'text/calendar;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cdm-schedule-' + label + '.ics';
+  a.click();
+  statusEl.textContent = count + ' events exported. Open the downloaded file to import it into your Calendar app.';
 }
 
 </script>
